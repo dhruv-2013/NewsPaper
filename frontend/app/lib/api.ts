@@ -24,12 +24,22 @@ const getApiUrl = () => {
 
 const API_BASE_URL = getApiUrl()
 
+// Create separate axios instances for different endpoints
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 180000, // 3 minutes timeout for news extraction (Render cold start can take 50s + extraction time)
+  timeout: 90000, // 90 seconds for news extraction
+})
+
+// Separate instance for chat (shorter timeout)
+const chatApi = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 30000, // 30 seconds for chat
 })
 
 // Add request interceptor for better error handling
@@ -126,7 +136,7 @@ export const getBreakingNews = async (): Promise<Highlight[]> => {
 }
 
 export const askQuestion = async (question: string, category?: string | null): Promise<ChatResponse> => {
-  const response = await api.post('/chat/ask', {
+  const response = await chatApi.post('/chat/ask', {
     question,
     category: category || undefined,
   })

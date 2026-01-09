@@ -107,7 +107,7 @@ class NewsExtractor:
             feed = feedparser.parse(content)
             articles = []
             
-            for entry in feed.entries[:5]:  # Limit to 5 articles per feed for faster extraction
+            for entry in feed.entries[:3]:  # Limit to 3 articles per feed for fastest extraction
                 article = {
                     "title": entry.get("title", ""),
                     "link": entry.get("link", ""),
@@ -169,33 +169,25 @@ class NewsExtractor:
             return ""
     
     async def extract_articles_by_category(self, category: str) -> List[Dict]:
-        """Extract articles for a specific category"""
+        """Extract articles for a specific category - Fast mode"""
         sources = self.NEWS_SOURCES.get(category, [])
         all_articles = []
         
-        for source in sources:
+        # Only use first source per category for speed
+        if sources:
+            source = sources[0]
             try:
                 rss_articles = await self.fetch_rss_feed(source["rss"])
                 
-                for rss_article in rss_articles:
-                    # Use RSS summary instead of scraping full content (much faster)
-                    # Only extract content if summary is too short
-                    summary = rss_article.get("summary", "")
-                    content = summary
-                    
-                    # Only scrape full content if summary is very short (< 100 chars)
-                    if len(summary) < 100:
-                        content = await self.extract_article_content(
-                            rss_article["link"],
-                            source["base_url"]
-                        )
-                        # Fallback to summary if scraping fails
-                        if not content or len(content) < 50:
-                            content = summary
+                # Limit to 3 articles per source for fastest processing
+                for rss_article in rss_articles[:3]:
+                    # Use RSS data only - no web scraping for maximum speed
+                    summary = rss_article.get("summary", "") or rss_article.get("title", "")
+                    content = summary  # Use summary as content
                     
                     article = {
                         "title": rss_article["title"],
-                        "content": content or summary,
+                        "content": content,
                         "summary": summary,
                         "author": rss_article.get("author", "Unknown"),
                         "source": source["name"],
@@ -204,12 +196,8 @@ class NewsExtractor:
                         "published_date": self.parse_date(rss_article.get("published", ""))
                     }
                     all_articles.append(article)
-                
-                # Small delay between sources
-                await asyncio.sleep(0.2)
             except Exception as e:
                 print(f"Error processing source {source['name']}: {e}")
-                continue
         
         return all_articles
     
