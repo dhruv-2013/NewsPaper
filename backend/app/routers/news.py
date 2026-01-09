@@ -16,15 +16,16 @@ async def extract_news(
     request: schemas.ExtractionRequest,
     db: Session = Depends(get_db)
 ):
-    """Extract news articles from Australian news outlets"""
+    """Extract news articles from Australian news outlets - Optimized for speed"""
     try:
         extractor = NewsExtractor()
         categorizer = NewsCategorizer()
         summarizer = NewsSummarizer()
         highlights_processor = HighlightsProcessor()
         
-        # Extract articles (limit to 2 categories max for faster processing)
-        categories_to_extract = request.categories[:2] if len(request.categories) > 2 else request.categories
+        # Limit to 1 category for fastest processing
+        categories_to_extract = [request.categories[0]] if request.categories else ["sports"]
+        
         async with extractor:
             articles_data = await extractor.extract_all_articles(categories_to_extract)
         
@@ -36,16 +37,33 @@ async def extract_news(
                 highlights_created=0
             )
         
-        # Categorize and detect duplicates
-        articles_data = categorizer.detect_duplicates(articles_data)
+        # Limit to 10 articles for speed
+        articles_data = articles_data[:10]
         
-        # Process each article (limit to first 20 for faster processing)
-        articles_to_process = articles_data[:20]
+        # Simplified duplicate detection (faster)
+        seen_urls = set()
+        unique_articles = []
+        for article in articles_data:
+            url = article.get("source_url", "")
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                unique_articles.append(article)
+        
+        articles_data = unique_articles
+        
+        # Quick categorization without full clustering
+        for article in articles_data:
+            category = categorizer.categorize_article(article["title"], article.get("content", ""))
+            article["category"] = category
+            article["cluster_id"] = hash(article["title"]) % 1000  # Simple hash-based clustering
+            article["is_duplicate"] = False
+        
+        # Process articles quickly (skip AI summarization, use RSS summaries)
         articles_created = 0
         duplicates_count = 0
         processed_articles = []
         
-        for article_data in articles_to_process:
+        for article_data in articles_data:
             # Check if article already exists
             existing = db.query(models.Article).filter(
                 models.Article.source_url == article_data["source_url"]
@@ -55,34 +73,26 @@ async def extract_news(
                 processed_articles.append(existing)
                 continue
             
-            # Use RSS summary if available, otherwise generate (faster)
-            if article_data.get("summary") and len(article_data["summary"]) > 50:
-                summary = article_data["summary"]
-            else:
-                # Only generate AI summary if RSS summary is poor
-                summary = summarizer.summarize(
-                    article_data["title"],
-                    article_data.get("content", article_data.get("summary", ""))
-                )
+            # Use RSS summary directly (skip AI for speed)
+            summary = article_data.get("summary", "")
+            if not summary or len(summary) < 30:
+                summary = article_data.get("title", "") + " - News article from " + article_data.get("source", "")
             
-            # Generate embedding (only for new articles)
-            text_for_embedding = f"{article_data['title']} {summary}"
-            embedding = categorizer.generate_embedding(text_for_embedding)
-            embedding_json = categorizer.embedding_to_json(embedding)
+            # Simple embedding (skip for now to save time)
+            embedding_json = "[]"
             
             # Create or update article
             if existing:
                 for key, value in article_data.items():
-                    if key != "summary":  # Don't overwrite summary from article_data
+                    if key != "summary":
                         setattr(existing, key, value)
                 existing.summary = summary
                 existing.embedding = embedding_json
-                existing.is_duplicate = article_data.get("is_duplicate", False)
+                existing.is_duplicate = False
                 existing.cluster_id = article_data.get("cluster_id")
                 article = existing
                 processed_articles.append(article)
             else:
-                # Remove summary from article_data if it exists to avoid duplicate
                 article_dict = {k: v for k, v in article_data.items() if k != "summary"}
                 article = models.Article(
                     **article_dict,
@@ -92,47 +102,28 @@ async def extract_news(
                 db.add(article)
                 articles_created += 1
                 processed_articles.append(article)
-            
-            if article_data.get("is_duplicate", False):
-                duplicates_count += 1
         
         db.commit()
         
-        # Refresh all articles to get IDs
+        # Refresh articles
         for article in processed_articles:
             db.refresh(article)
         
-        # Create highlights from processed articles
-        articles_for_highlights = [
-            {
-                "id": art.id,
-                "title": art.title,
-                "summary": art.summary or "",
-                "category": art.category,
-                "source": art.source,
-                "author": art.author or "Unknown",
-                "cluster_id": art.cluster_id
-            }
-            for art in processed_articles if art.id
-        ]
-        
-        highlights_data = highlights_processor.create_highlights(articles_for_highlights)
-        
-        # Clear old highlights and create new ones
+        # Create simple highlights (no complex clustering)
+        highlights_created = 0
         db.query(models.Highlight).delete()
         
-        highlights_created = 0
-        for highlight_data in highlights_data:
+        for art in processed_articles[:10]:  # Max 10 highlights
             highlight = models.Highlight(
-                article_id=highlight_data["article_id"],
-                title=highlight_data["title"],
-                summary=highlight_data["summary"],
-                category=highlight_data["category"],
-                frequency=highlight_data["frequency"],
-                priority_score=highlight_data["priority_score"],
-                sources=",".join(highlight_data["sources"]),
-                authors=",".join(highlight_data["authors"]),
-                is_breaking=highlight_data["is_breaking"]
+                article_id=art.id,
+                title=art.title,
+                summary=art.summary or art.title,
+                category=art.category,
+                frequency=1,
+                priority_score=10.0,
+                sources=art.source,
+                authors=art.author or "Unknown",
+                is_breaking=False
             )
             db.add(highlight)
             highlights_created += 1

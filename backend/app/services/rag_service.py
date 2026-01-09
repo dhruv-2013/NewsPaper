@@ -101,8 +101,9 @@ class RAGService:
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
-                max_tokens=500,
-                temperature=0.7
+                max_tokens=200,  # Reduced for faster response
+                temperature=0.7,
+                timeout=15  # 15 second timeout per request
             )
             
             answer = response.choices[0].message.content.strip()

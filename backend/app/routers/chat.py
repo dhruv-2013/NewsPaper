@@ -33,7 +33,7 @@ def ask_question(
         
         articles = query.order_by(
             models.Article.extracted_date.desc()
-        ).limit(100).all()
+        ).limit(20).all()  # Reduced from 100 to 20 for faster processing
         
         # Convert to dict format - include content if summary is missing
         articles_data = []
@@ -48,11 +48,11 @@ def ask_question(
             }
             articles_data.append(article_dict)
         
-        # Find relevant articles
+        # Find relevant articles (limit to top 3 for speed)
         relevant_articles = rag_service.find_relevant_articles(
             request.question,
             articles_data,
-            top_k=5
+            top_k=3  # Reduced from 5 to 3 for faster response
         )
         
         # Generate response
