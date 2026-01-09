@@ -1,19 +1,24 @@
 import axios from 'axios'
 
-// Get API URL from environment or use localhost for development
+// Get API URL from environment or use Next.js API routes
 const getApiUrl = () => {
-  // Check if we're in browser and have environment variable
-  if (typeof window !== 'undefined') {
-    const envUrl = process.env.NEXT_PUBLIC_API_URL
-    if (envUrl) return envUrl
+  // If NEXT_PUBLIC_API_URL is set, use external backend
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL
   }
   
-  // Development fallback
+  // Otherwise, use Next.js API routes (works on Vercel)
+  // In browser, use relative path; in server, use full URL
+  if (typeof window !== 'undefined') {
+    return '/api'
+  }
+  
+  // Server-side: use full URL or localhost for development
   if (process.env.NODE_ENV === 'development') {
     return 'http://localhost:8000/api'
   }
   
-  // Production fallback - should never reach here if env var is set
+  // Production: use relative path for Next.js API routes
   return '/api'
 }
 
