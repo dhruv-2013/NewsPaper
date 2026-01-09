@@ -64,14 +64,18 @@ async def ask_question(
             if keyword_matches:
                 relevant_articles = keyword_matches[:3]
         
-        # Generate response with timeout
+        # Generate response with timeout (run in thread to prevent blocking)
         try:
+            # Wrap the synchronous call in a thread with timeout
+            loop = asyncio.get_event_loop()
             response = await asyncio.wait_for(
-                asyncio.to_thread(
-                    rag_service.generate_response,
-                    request.question,
-                    relevant_articles,
-                    request.category
+                loop.run_in_executor(
+                    None,  # Use default executor
+                    lambda: rag_service.generate_response(
+                        request.question,
+                        relevant_articles,
+                        request.category
+                    )
                 ),
                 timeout=20.0  # 20 second timeout for GPT response
             )
@@ -79,6 +83,14 @@ async def ask_question(
             # Fallback response if GPT times out
             response = {
                 "answer": f"Based on the recent news, here are some relevant articles: {', '.join([art.get('title', '')[:50] for art in relevant_articles[:2]])}",
+                "sources": list(set([art.get("source", "Unknown") for art in relevant_articles])),
+                "related_articles": [art.get("id") for art in relevant_articles if art.get("id")]
+            }
+        except Exception as e:
+            # Fallback if GPT fails for any reason
+            print(f"Error generating GPT response: {e}")
+            response = {
+                "answer": f"Here are some relevant articles: {', '.join([art.get('title', '')[:50] for art in relevant_articles[:2]])}",
                 "sources": list(set([art.get("source", "Unknown") for art in relevant_articles])),
                 "related_articles": [art.get("id") for art in relevant_articles if art.get("id")]
             }
