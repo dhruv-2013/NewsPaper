@@ -39,12 +39,17 @@ export default function Home() {
   const handleExtractNews = async () => {
     setLoading(true)
     try {
-      await extractNews(['sports', 'lifestyle', 'music', 'finance'])
-      alert('News extraction completed! Refresh to see new highlights.')
+      const result = await extractNews(['sports', 'lifestyle', 'music', 'finance'])
+      alert(`News extraction completed! ${result.articles_extracted} articles extracted, ${result.highlights_created} highlights created.`)
       loadCategories()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error extracting news:', error)
-      alert('Error extracting news. Please try again.')
+      const errorMessage = error?.message || 'Unknown error occurred'
+      if (errorMessage.includes('Cannot connect to backend')) {
+        alert('Cannot connect to backend server. Please ensure:\n1. Backend is running\n2. NEXT_PUBLIC_API_URL is set correctly\n3. CORS is configured properly')
+      } else {
+        alert(`Error extracting news: ${errorMessage}\n\nPlease check:\n1. Backend server is running\n2. Network connection is stable\n3. Try again in a moment`)
+      }
     } finally {
       setLoading(false)
     }

@@ -1,13 +1,57 @@
 import axios from 'axios'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
+// Get API URL from environment or use localhost for development
+const getApiUrl = () => {
+  // Check if we're in browser and have environment variable
+  if (typeof window !== 'undefined') {
+    const envUrl = process.env.NEXT_PUBLIC_API_URL
+    if (envUrl) return envUrl
+  }
+  
+  // Development fallback
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:8000/api'
+  }
+  
+  // Production fallback - should never reach here if env var is set
+  return '/api'
+}
+
+const API_BASE_URL = getApiUrl()
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 60000, // 60 second timeout for news extraction
 })
+
+// Add request interceptor for better error handling
+api.interceptors.request.use(
+  (config) => {
+    console.log('API Request:', config.method?.toUpperCase(), config.url)
+    return config
+  },
+  (error) => {
+    console.error('API Request Error:', error)
+    return Promise.reject(error)
+  }
+)
+
+// Add response interceptor for better error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      console.error('Network Error - Backend may not be running or CORS issue')
+      console.error('API URL:', API_BASE_URL)
+      throw new Error('Cannot connect to backend. Please check if the backend server is running and CORS is configured correctly.')
+    }
+    console.error('API Error:', error.response?.data || error.message)
+    throw error
+  }
+)
 
 export interface Article {
   id: number
