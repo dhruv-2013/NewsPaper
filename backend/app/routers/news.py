@@ -67,7 +67,8 @@ async def extract_news(
             # Create or update article
             if existing:
                 for key, value in article_data.items():
-                    setattr(existing, key, value)
+                    if key != "summary":  # Don't overwrite summary from article_data
+                        setattr(existing, key, value)
                 existing.summary = summary
                 existing.embedding = embedding_json
                 existing.is_duplicate = article_data.get("is_duplicate", False)
@@ -75,8 +76,10 @@ async def extract_news(
                 article = existing
                 processed_articles.append(article)
             else:
+                # Remove summary from article_data if it exists to avoid duplicate
+                article_dict = {k: v for k, v in article_data.items() if k != "summary"}
                 article = models.Article(
-                    **article_data,
+                    **article_dict,
                     summary=summary,
                     embedding=embedding_json
                 )

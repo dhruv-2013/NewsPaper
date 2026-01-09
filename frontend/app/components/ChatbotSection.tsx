@@ -60,7 +60,8 @@ export default function ChatbotSection({ category }: ChatbotSectionProps) {
     setLoading(true)
 
     try {
-      const response: ChatResponse = await askQuestion(input, category || undefined)
+      // Don't restrict by category - let the chatbot search across all categories
+      const response: ChatResponse = await askQuestion(input, undefined)
       
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -141,7 +142,7 @@ export default function ChatbotSection({ category }: ChatbotSectionProps) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask a question about the news..."
-                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder-gray-400"
                 rows={1}
                 style={{ minHeight: '48px', maxHeight: '120px' }}
               />

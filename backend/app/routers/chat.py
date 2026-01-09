@@ -15,28 +15,38 @@ def ask_question(
     try:
         rag_service = RAGService()
         
-        # Get recent articles/highlights for context
-        query = db.query(models.Article).join(models.Highlight)
+        # Get recent articles for context - don't require highlights
+        query = db.query(models.Article)
         
-        if request.category:
+        # Filter by category if question mentions a specific category
+        question_lower = request.question.lower()
+        if 'sport' in question_lower or 'sports' in question_lower:
+            query = query.filter(models.Article.category == 'sports')
+        elif 'finance' in question_lower or 'business' in question_lower or 'economic' in question_lower:
+            query = query.filter(models.Article.category == 'finance')
+        elif 'music' in question_lower:
+            query = query.filter(models.Article.category == 'music')
+        elif 'lifestyle' in question_lower:
+            query = query.filter(models.Article.category == 'lifestyle')
+        elif request.category:
             query = query.filter(models.Article.category == request.category)
         
         articles = query.order_by(
             models.Article.extracted_date.desc()
         ).limit(100).all()
         
-        # Convert to dict format
-        articles_data = [
-            {
+        # Convert to dict format - include content if summary is missing
+        articles_data = []
+        for art in articles:
+            article_dict = {
                 "id": art.id,
                 "title": art.title,
-                "summary": art.summary or "",
+                "summary": art.summary or art.content[:200] if art.content else "",
                 "source": art.source,
-                "author": art.author,
+                "author": art.author or "Unknown",
                 "category": art.category
             }
-            for art in articles
-        ]
+            articles_data.append(article_dict)
         
         # Find relevant articles
         relevant_articles = rag_service.find_relevant_articles(

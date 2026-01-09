@@ -70,29 +70,38 @@ class RAGService:
         
         # Build context from articles
         context_text = ""
-        for i, article in enumerate(context_articles[:3]):  # Use top 3 articles
-            context_text += f"Article {i+1}:\n"
+        if not context_articles:
+            return {
+                "answer": "I don't have any recent news articles to answer your question. Please extract news first by clicking the 'Extract News' button.",
+                "sources": [],
+                "related_articles": []
+            }
+        
+        for i, article in enumerate(context_articles[:5]):  # Use top 5 articles for better context
+            context_text += f"Article {i+1} ({article.get('category', 'unknown').upper()}):\n"
             context_text += f"Title: {article.get('title', '')}\n"
-            context_text += f"Summary: {article.get('summary', '')}\n"
-            context_text += f"Source: {article.get('source', '')}\n\n"
+            summary = article.get('summary', '')
+            if summary:
+                context_text += f"Summary: {summary}\n"
+            context_text += f"Source: {article.get('source', 'Unknown')}\n\n"
         
         try:
             # Generate response using OpenAI
             messages = [
                 {
                     "role": "system",
-                    "content": "You are a helpful news assistant. Answer questions based on the provided news articles. Be concise and informative. If the information isn't in the context, say so."
+                    "content": "You are a helpful news assistant. Answer questions based on the provided news articles. Be informative and provide specific details from the articles. If the question asks about a specific category (like sports, finance, music), focus on articles from that category. Always provide a helpful answer using the context provided."
                 },
                 {
                     "role": "user",
-                    "content": f"Context from recent news articles:\n\n{context_text}\n\nQuestion: {question}\n\nAnswer based on the context above:"
+                    "content": f"Here are recent news articles:\n\n{context_text}\n\nQuestion: {question}\n\nPlease provide a detailed answer based on the articles above. Include specific information from the articles when relevant."
                 }
             ]
             
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
-                max_tokens=300,
+                max_tokens=500,
                 temperature=0.7
             )
             
