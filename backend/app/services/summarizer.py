@@ -18,23 +18,35 @@ class NewsSummarizer:
     
     def summarize(self, title: str, content: str) -> str:
         """Generate summary of article"""
+        # If content already has a good summary (from RSS), use it
+        if content and len(content) > 50 and len(content) < 500:
+            return content[:300]  # Limit length
+        
+        # Use simple summary for speed (skip AI if not critical)
+        simple = self._simple_summary(content)
+        if len(simple) > 50:
+            return simple
+        
+        # Only use AI if simple summary is too short
         if self.client:
             try:
+                # Use shorter content for faster processing
+                content_preview = (content[:500] if content else title)
                 response = self.client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
-                        {"role": "system", "content": "You are a news summarizer. Create concise, informative summaries of news articles."},
-                        {"role": "user", "content": f"Title: {title}\n\nContent: {content[:2000]}\n\nProvide a 2-3 sentence summary:"}
+                        {"role": "system", "content": "You are a news summarizer. Create concise summaries."},
+                        {"role": "user", "content": f"Title: {title}\n\nContent: {content_preview}\n\nSummary:"}
                     ],
-                    max_tokens=150,
+                    max_tokens=80,  # Very short for speed
                     temperature=0.3
                 )
                 return response.choices[0].message.content.strip()
             except Exception as e:
                 print(f"Error in OpenAI summarization: {e}")
-                return self._simple_summary(content)
+                return simple
         else:
-            return self._simple_summary(content)
+            return simple
     
     def _simple_summary(self, content: str) -> str:
         """Fallback simple summary extraction"""

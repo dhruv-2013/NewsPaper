@@ -23,9 +23,10 @@ async def extract_news(
         summarizer = NewsSummarizer()
         highlights_processor = HighlightsProcessor()
         
-        # Extract articles
+        # Extract articles (limit to 2 categories max for faster processing)
+        categories_to_extract = request.categories[:2] if len(request.categories) > 2 else request.categories
         async with extractor:
-            articles_data = await extractor.extract_all_articles(request.categories)
+            articles_data = await extractor.extract_all_articles(categories_to_extract)
         
         if not articles_data:
             return schemas.ExtractionResponse(
@@ -38,12 +39,13 @@ async def extract_news(
         # Categorize and detect duplicates
         articles_data = categorizer.detect_duplicates(articles_data)
         
-        # Process each article
+        # Process each article (limit to first 20 for faster processing)
+        articles_to_process = articles_data[:20]
         articles_created = 0
         duplicates_count = 0
         processed_articles = []
         
-        for article_data in articles_data:
+        for article_data in articles_to_process:
             # Check if article already exists
             existing = db.query(models.Article).filter(
                 models.Article.source_url == article_data["source_url"]
@@ -53,13 +55,17 @@ async def extract_news(
                 processed_articles.append(existing)
                 continue
             
-            # Generate summary
-            summary = summarizer.summarize(
-                article_data["title"],
-                article_data["content"]
-            )
+            # Use RSS summary if available, otherwise generate (faster)
+            if article_data.get("summary") and len(article_data["summary"]) > 50:
+                summary = article_data["summary"]
+            else:
+                # Only generate AI summary if RSS summary is poor
+                summary = summarizer.summarize(
+                    article_data["title"],
+                    article_data.get("content", article_data.get("summary", ""))
+                )
             
-            # Generate embedding
+            # Generate embedding (only for new articles)
             text_for_embedding = f"{article_data['title']} {summary}"
             embedding = categorizer.generate_embedding(text_for_embedding)
             embedding_json = categorizer.embedding_to_json(embedding)
