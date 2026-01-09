@@ -18,17 +18,25 @@ export async function GET(request: Request) {
     if (category) params.append('category', category);
     
     // Proxy to backend
-    const response = await fetch(`${backendUrl}/api/highlights/?${params.toString()}`);
+    const response = await fetch(`${backendUrl}/api/highlights/?${params.toString()}`, {
+      signal: AbortSignal.timeout(30000), // 30 second timeout
+    });
     
     if (!response.ok) {
+      if (response.status === 502 || response.status === 503) {
+        // Backend is spinning up, return empty array
+        return NextResponse.json([]);
+      }
       throw new Error(`Backend responded with status ${response.status}`);
     }
     
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error: any) {
-    // If backend unavailable, return empty array
-    if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED')) {
+    // If backend unavailable or timeout, return empty array
+    if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED') || 
+        error.message.includes('502') || error.message.includes('503') ||
+        error.name === 'TimeoutError' || error.name === 'AbortError') {
       return NextResponse.json([]);
     }
     return NextResponse.json(

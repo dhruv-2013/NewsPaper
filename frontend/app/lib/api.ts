@@ -29,7 +29,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 60000, // 60 second timeout for news extraction
+  timeout: 180000, // 3 minutes timeout for news extraction (Render cold start can take 50s + extraction time)
 })
 
 // Add request interceptor for better error handling

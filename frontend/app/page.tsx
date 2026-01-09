@@ -58,8 +58,10 @@ export default function Home() {
       
       if (errorMessage.includes('Backend connection failed') || errorMessage.includes('Backend server is not available')) {
         alert('⚠️ Backend Not Connected!\n\nYour backend needs to be deployed.\n\nQuick fix:\n1. Go to render.com\n2. Deploy backend (see DEPLOY_BACKEND_NOW.md)\n3. Set BACKEND_URL in Vercel\n4. Redeploy frontend')
-      } else if (errorMessage.includes('503')) {
-        alert('⚠️ Backend Unavailable\n\nThe backend server is not responding.\n\nPlease:\n1. Check if backend is deployed\n2. Verify BACKEND_URL is correct\n3. Check backend logs for errors')
+      } else if (errorMessage.includes('503') || errorMessage.includes('502') || errorMessage.includes('spinning up')) {
+        alert('⚠️ Backend Starting Up\n\nRender free tier is waking up the backend (takes 30-60 seconds).\n\nPlease:\n1. Wait 30-60 seconds\n2. Try again\n3. First request is always slower on free tier')
+      } else if (errorMessage.includes('timeout')) {
+        alert('⏱️ Request Timeout\n\nNews extraction takes time, especially on first request.\n\nPossible causes:\n1. Backend is spinning up (Render free tier)\n2. News extraction is processing many articles\n3. Network is slow\n\nPlease try again in a moment')
       } else {
         alert(`❌ Error: ${errorMessage}\n\nPlease check:\n1. Backend server is running\n2. Network connection is stable\n3. Try again in a moment`)
       }
