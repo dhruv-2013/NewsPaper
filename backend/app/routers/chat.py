@@ -7,13 +7,14 @@ from app.services.rag_service import RAGService
 router = APIRouter()
 
 @router.post("/ask", response_model=schemas.ChatResponse)
-def ask_question(
+async def ask_question(
     request: schemas.ChatRequest,
     db: Session = Depends(get_db)
 ):
-    """Ask a question about news highlights using RAG"""
+    """Ask a question about news highlights using RAG - Fast mode"""
     try:
         rag_service = RAGService()
+        import asyncio
         
         # Get recent articles for context - don't require highlights
         query = db.query(models.Article)
@@ -49,18 +50,38 @@ def ask_question(
             articles_data.append(article_dict)
         
         # Find relevant articles (limit to top 3 for speed)
-        relevant_articles = rag_service.find_relevant_articles(
-            request.question,
-            articles_data,
-            top_k=3  # Reduced from 5 to 3 for faster response
-        )
+        # Use simple keyword matching instead of embeddings for speed
+        question_lower = request.question.lower()
+        relevant_articles = articles_data[:3]  # Just take first 3 for speed
         
-        # Generate response
-        response = rag_service.generate_response(
-            request.question,
-            relevant_articles,
-            request.category
-        )
+        # Simple keyword filtering
+        if articles_data:
+            keyword_matches = [
+                art for art in articles_data
+                if any(keyword in art.get("title", "").lower() or keyword in art.get("summary", "").lower() 
+                      for keyword in question_lower.split() if len(keyword) > 3)
+            ]
+            if keyword_matches:
+                relevant_articles = keyword_matches[:3]
+        
+        # Generate response with timeout
+        try:
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    rag_service.generate_response,
+                    request.question,
+                    relevant_articles,
+                    request.category
+                ),
+                timeout=20.0  # 20 second timeout for GPT response
+            )
+        except asyncio.TimeoutError:
+            # Fallback response if GPT times out
+            response = {
+                "answer": f"Based on the recent news, here are some relevant articles: {', '.join([art.get('title', '')[:50] for art in relevant_articles[:2]])}",
+                "sources": list(set([art.get("source", "Unknown") for art in relevant_articles])),
+                "related_articles": [art.get("id") for art in relevant_articles if art.get("id")]
+            }
         
         # Save chat history
         chat_history = models.ChatHistory(

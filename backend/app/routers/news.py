@@ -16,19 +16,28 @@ async def extract_news(
     request: schemas.ExtractionRequest,
     db: Session = Depends(get_db)
 ):
-    """Extract news articles from Australian news outlets - Optimized for speed"""
+    """Extract news articles from Australian news outlets - Ultra-fast mode"""
     try:
         extractor = NewsExtractor()
-        categorizer = NewsCategorizer()
-        summarizer = NewsSummarizer()
-        highlights_processor = HighlightsProcessor()
         
         # Limit to 1 category only for fastest processing
         # Process sports first (most reliable RSS feeds)
         categories_to_extract = ["sports"]  # Always start with sports for speed
         
+        # Extract with timeout protection
         async with extractor:
-            articles_data = await extractor.extract_all_articles(categories_to_extract)
+            try:
+                articles_data = await asyncio.wait_for(
+                    extractor.extract_all_articles(categories_to_extract),
+                    timeout=30.0  # 30 second timeout for extraction
+                )
+            except asyncio.TimeoutError:
+                return schemas.ExtractionResponse(
+                    message="Extraction timed out - Render free tier may be slow",
+                    articles_extracted=0,
+                    duplicates_found=0,
+                    highlights_created=0
+                )
         
         if not articles_data:
             return schemas.ExtractionResponse(
@@ -52,10 +61,11 @@ async def extract_news(
         
         articles_data = unique_articles
         
-        # Quick categorization without full clustering
+        # Simple categorization (no AI, just use the category from extraction)
         for article in articles_data:
-            category = categorizer.categorize_article(article["title"], article.get("content", ""))
-            article["category"] = category
+            # Category should already be set from extractor
+            if not article.get("category"):
+                article["category"] = "sports"  # Default to sports
             article["cluster_id"] = hash(article["title"]) % 1000  # Simple hash-based clustering
             article["is_duplicate"] = False
         

@@ -34,7 +34,14 @@ export async function POST(req: Request) {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error(`Backend responded with status ${response.status}`);
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`Chat backend error ${response.status}:`, errorText);
+      
+      if (response.status === 502 || response.status === 503) {
+        throw new Error(`Backend is unavailable (${response.status}). Render free tier may be spinning up.`);
+      }
+      
+      throw new Error(`Backend responded with status ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
