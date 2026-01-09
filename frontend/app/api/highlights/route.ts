@@ -17,10 +17,15 @@ export async function GET(request: Request) {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (category) params.append('category', category);
     
-    // Proxy to backend
+    // Proxy to backend with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
     const response = await fetch(`${backendUrl}/api/highlights/?${params.toString()}`, {
-      signal: AbortSignal.timeout(30000), // 30 second timeout
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       if (response.status === 502 || response.status === 503) {
@@ -34,9 +39,10 @@ export async function GET(request: Request) {
     return NextResponse.json(data);
   } catch (error: any) {
     // If backend unavailable or timeout, return empty array
-    if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED') || 
-        error.message.includes('502') || error.message.includes('503') ||
-        error.name === 'TimeoutError' || error.name === 'AbortError') {
+    if (error.message?.includes('fetch failed') || error.message?.includes('ECONNREFUSED') || 
+        error.message?.includes('502') || error.message?.includes('503') ||
+        error.name === 'TimeoutError' || error.name === 'AbortError' || 
+        error.message?.includes('aborted')) {
       return NextResponse.json([]);
     }
     return NextResponse.json(

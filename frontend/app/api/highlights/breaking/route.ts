@@ -8,9 +8,14 @@ export async function GET() {
   try {
     const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8000';
     
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
     const response = await fetch(`${backendUrl}/api/highlights/breaking`, {
-      signal: AbortSignal.timeout(30000), // 30 second timeout
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       if (response.status === 502 || response.status === 503) {
@@ -22,9 +27,10 @@ export async function GET() {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error: any) {
-    if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED') || 
-        error.message.includes('502') || error.message.includes('503') ||
-        error.name === 'TimeoutError' || error.name === 'AbortError') {
+    if (error.message?.includes('fetch failed') || error.message?.includes('ECONNREFUSED') || 
+        error.message?.includes('502') || error.message?.includes('503') ||
+        error.name === 'TimeoutError' || error.name === 'AbortError' ||
+        error.message?.includes('aborted')) {
       return NextResponse.json([]);
     }
     return NextResponse.json(
