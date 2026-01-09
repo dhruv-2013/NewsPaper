@@ -40,15 +40,28 @@ export default function Home() {
     setLoading(true)
     try {
       const result = await extractNews(['sports', 'lifestyle', 'music', 'finance'])
-      alert(`News extraction completed! ${result.articles_extracted} articles extracted, ${result.highlights_created} highlights created.`)
+      
+      if (result.error && result.error.includes('Backend connection failed')) {
+        alert('⚠️ Backend Not Connected!\n\nPlease:\n1. Deploy backend to Render/Railway\n2. Set BACKEND_URL in Vercel environment variables\n3. Redeploy frontend\n\nSee DEPLOY_BACKEND_NOW.md for step-by-step guide.')
+        return
+      }
+      
+      if (result.articles_extracted === 0 && result.highlights_created === 0) {
+        alert('⚠️ No articles extracted.\n\nPossible reasons:\n1. Backend not connected (check BACKEND_URL)\n2. RSS feeds temporarily unavailable\n3. No new articles found\n\nCheck browser console for details.')
+      } else {
+        alert(`✅ News extraction completed!\n\n${result.articles_extracted} articles extracted\n${result.highlights_created} highlights created`)
+      }
       loadCategories()
     } catch (error: any) {
       console.error('Error extracting news:', error)
-      const errorMessage = error?.message || 'Unknown error occurred'
-      if (errorMessage.includes('Cannot connect to backend')) {
-        alert('Cannot connect to backend server. Please ensure:\n1. Backend is running\n2. NEXT_PUBLIC_API_URL is set correctly\n3. CORS is configured properly')
+      const errorMessage = error?.response?.data?.error || error?.message || 'Unknown error occurred'
+      
+      if (errorMessage.includes('Backend connection failed') || errorMessage.includes('Backend server is not available')) {
+        alert('⚠️ Backend Not Connected!\n\nYour backend needs to be deployed.\n\nQuick fix:\n1. Go to render.com\n2. Deploy backend (see DEPLOY_BACKEND_NOW.md)\n3. Set BACKEND_URL in Vercel\n4. Redeploy frontend')
+      } else if (errorMessage.includes('503')) {
+        alert('⚠️ Backend Unavailable\n\nThe backend server is not responding.\n\nPlease:\n1. Check if backend is deployed\n2. Verify BACKEND_URL is correct\n3. Check backend logs for errors')
       } else {
-        alert(`Error extracting news: ${errorMessage}\n\nPlease check:\n1. Backend server is running\n2. Network connection is stable\n3. Try again in a moment`)
+        alert(`❌ Error: ${errorMessage}\n\nPlease check:\n1. Backend server is running\n2. Network connection is stable\n3. Try again in a moment`)
       }
     } finally {
       setLoading(false)
