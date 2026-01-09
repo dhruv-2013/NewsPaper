@@ -18,14 +18,20 @@ export async function POST(req: Request) {
 
     const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8000';
     
-    // Proxy to backend
+    // Proxy to backend with shorter timeout for chat
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 seconds for chat
+    
     const response = await fetch(`${backendUrl}/api/chat/ask`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ question, category }),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Backend responded with status ${response.status}`);

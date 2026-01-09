@@ -23,8 +23,9 @@ async def extract_news(
         summarizer = NewsSummarizer()
         highlights_processor = HighlightsProcessor()
         
-        # Limit to 1 category for fastest processing
-        categories_to_extract = [request.categories[0]] if request.categories else ["sports"]
+        # Limit to 1 category only for fastest processing
+        # Process sports first (most reliable RSS feeds)
+        categories_to_extract = ["sports"]  # Always start with sports for speed
         
         async with extractor:
             articles_data = await extractor.extract_all_articles(categories_to_extract)
