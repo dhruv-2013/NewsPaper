@@ -12,18 +12,31 @@ export async function POST(req: Request) {
       );
     }
 
-    // TODO: Implement RAG chatbot logic
-    // This needs:
-    // 1. Query database for relevant articles
-    // 2. Use OpenAI API for RAG
-    // 3. Return response with sources
+    const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8000';
     
-    return NextResponse.json({
-      answer: "Chatbot endpoint - implementation needed. Please connect to your backend service.",
-      sources: [],
-      related_articles: []
+    // Proxy to backend
+    const response = await fetch(`${backendUrl}/api/chat/ask`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ question, category }),
     });
+
+    if (!response.ok) {
+      throw new Error(`Backend responded with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
   } catch (error: any) {
+    if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED')) {
+      return NextResponse.json({
+        answer: "Backend server is not available. Please ensure your backend is deployed and BACKEND_URL is set correctly.",
+        sources: [],
+        related_articles: []
+      }, { status: 503 });
+    }
     return NextResponse.json(
       { error: error.message || "Failed to process question" },
       { status: 500 }
