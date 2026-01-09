@@ -45,3 +45,9 @@ Thumbs.db
 # ChromaDB
 chroma_db/
 
+# Vercel
+.vercel
+
+# Build artifacts
+*.egg-info/
+.pytest_cache/
