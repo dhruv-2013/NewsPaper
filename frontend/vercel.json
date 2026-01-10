@@ -1,9 +1,8 @@
 {
   "framework": "nextjs",
-  "buildCommand": "NODE_OPTIONS='--max-old-space-size=4096' npm run build",
+  "buildCommand": "NODE_OPTIONS='--max-old-space-size=3072' npm run build",
   "functions": {
     "app/api/**/*.ts": {
-      "memory": 1024,
       "maxDuration": 60
     }
   }
