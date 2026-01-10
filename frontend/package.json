@@ -14,7 +14,6 @@
     "react-dom": "^18.2.0",
     "axios": "^1.6.2",
     "lucide-react": "^0.294.0",
-    "framer-motion": "^10.16.16",
     "date-fns": "^2.30.0",
     "react-markdown": "^9.0.1"
   },

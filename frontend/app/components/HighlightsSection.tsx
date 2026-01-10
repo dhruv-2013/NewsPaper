@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { 
   Clock, 
   User, 
@@ -111,11 +110,9 @@ export default function HighlightsSection({ category }: HighlightsSectionProps) 
 
 function BreakingNewsCard({ highlight, index }: { highlight: Highlight; index: number }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      className="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-300 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300"
+    <div
+      style={{ animationDelay: `${index * 100}ms` }}
+      className="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-300 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 animate-fade-in-up"
     >
       <div className="flex items-start justify-between mb-3">
         <span className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full flex items-center space-x-1">
@@ -150,7 +147,7 @@ function BreakingNewsCard({ highlight, index }: { highlight: Highlight; index: n
           <span>{format(new Date(highlight.created_date), 'MMM d')}</span>
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -164,11 +161,9 @@ function HighlightCard({
   categoryColor: string
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
-      className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-blue-300"
+    <div
+      style={{ animationDelay: `${index * 50}ms` }}
+      className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-blue-300 animate-fade-in-up"
     >
       <div className="flex items-start justify-between mb-3">
         <span className={`px-3 py-1 text-xs font-semibold rounded-full border capitalize ${categoryColor}`}>
@@ -224,7 +219,7 @@ function HighlightCard({
           <span>Score: {highlight.priority_score.toFixed(0)}</span>
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
 

@@ -23,20 +23,6 @@ const nextConfig = {
         ...config.optimization,
         moduleIds: 'deterministic',
         minimize: true,
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            default: false,
-            vendors: false,
-            // Vendor chunk for large libraries
-            framerMotion: {
-              name: 'framer-motion',
-              test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
-              priority: 10,
-              reuseExistingChunk: true,
-            },
-          },
-        },
       }
     }
     return config

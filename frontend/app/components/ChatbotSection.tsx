@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Send, 
   Bot, 
@@ -113,21 +112,15 @@ export default function ChatbotSection({ category }: ChatbotSectionProps) {
 
         {/* Messages */}
         <div className="h-[500px] overflow-y-auto p-6 space-y-4 bg-gray-50">
-          <AnimatePresence>
-            {messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
-            ))}
-          </AnimatePresence>
+          {messages.map((message) => (
+            <MessageBubble key={message.id} message={message} />
+          ))}
           
           {loading && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center space-x-2 text-gray-500"
-            >
+            <div className="flex items-center space-x-2 text-gray-500 animate-fade-in">
               <Loader2 className="w-5 h-5 animate-spin" />
               <span>Thinking...</span>
-            </motion.div>
+            </div>
           )}
           
           <div ref={messagesEndRef} />
@@ -193,12 +186,7 @@ function MessageBubble({ message }: { message: Message }) {
   const isBot = message.type === 'bot'
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className={`flex ${isBot ? 'justify-start' : 'justify-end'}`}
-    >
+    <div className={`flex animate-fade-in ${isBot ? 'justify-start' : 'justify-end'}`}>
       <div className={`flex items-start space-x-3 max-w-[80%] ${isBot ? '' : 'flex-row-reverse space-x-reverse'}`}>
         <div
           className={`p-2 rounded-lg ${
@@ -244,7 +232,7 @@ function MessageBubble({ message }: { message: Message }) {
           </p>
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
