@@ -95,10 +95,9 @@ class NewsExtractor:
             return datetime.now()
     
     async def fetch_rss_feed(self, rss_url: str) -> List[Dict]:
-        """Fetch and parse RSS feed - MINIMAL: Fastest possible"""
+        """Fetch and parse RSS feed"""
         try:
-            # MINIMAL: Use shortest timeout (5 seconds)
-            timeout = aiohttp.ClientTimeout(total=5)
+            timeout = aiohttp.ClientTimeout(total=10)
             
             if self.session:
                 async with self.session.get(rss_url, timeout=timeout) as response:
@@ -108,19 +107,18 @@ class NewsExtractor:
                     content = await response.text()
             else:
                 # Fallback for sync requests
-                response = requests.get(rss_url, timeout=5)
+                response = requests.get(rss_url, timeout=10)
                 if response.status_code != 200:
                     print(f"RSS feed returned status {response.status_code}")
                     return []
                 content = response.text
             
-            # Parse feed (this is fast)
+            # Parse feed
             feed = feedparser.parse(content)
             
-            # MINIMAL: Only 1 article from feed
+            # Get up to 15 articles from feed
             articles = []
-            if feed.entries:
-                entry = feed.entries[0]  # Just first entry
+            for entry in feed.entries[:15]:
                 article = {
                     "title": entry.get("title", ""),
                     "link": entry.get("link", ""),
@@ -185,32 +183,28 @@ class NewsExtractor:
             return ""
     
     async def extract_articles_by_category(self, category: str) -> List[Dict]:
-        """Extract articles for a specific category - MINIMAL mode: 1 source, 1 article"""
+        """Extract articles for a specific category"""
         sources = self.NEWS_SOURCES.get(category, [])
         all_articles = []
         
-        # MINIMAL: Only first source, only 1 article
-        if sources:
-            source = sources[0]
+        # Process all sources for the category
+        for source in sources:
             try:
-                # Use shortest timeout possible (5 seconds per RSS fetch)
                 rss_articles = await asyncio.wait_for(
                     self.fetch_rss_feed(source["rss"]),
-                    timeout=5.0
+                    timeout=10.0  # 10 second timeout per RSS feed
                 )
                 
-                # MINIMAL: Only 1 article
-                if rss_articles:
-                    rss_article = rss_articles[0]  # Just first article
-                    
-                    # Use RSS data only - absolutely no web scraping
+                # Get up to 10 articles per source
+                for rss_article in rss_articles[:10]:
+                    # Use RSS data - no web scraping for speed
                     summary = rss_article.get("summary", "") or rss_article.get("title", "")
-                    content = summary  # Summary as content (no scraping)
+                    content = summary  # Use summary as content (faster than scraping)
                     
                     article = {
                         "title": rss_article.get("title", "Untitled"),
-                        "content": content[:500],  # Limit content length
-                        "summary": summary[:300],  # Limit summary length
+                        "content": content[:2000],  # Limit content length
+                        "summary": summary[:500],  # Limit summary length
                         "author": rss_article.get("author", "Unknown"),
                         "source": source["name"],
                         "source_url": rss_article.get("link", ""),
@@ -218,10 +212,15 @@ class NewsExtractor:
                         "published_date": self.parse_date(rss_article.get("published", ""))
                     }
                     all_articles.append(article)
+                
+                # Small delay between sources to avoid rate limiting
+                await asyncio.sleep(0.3)
             except asyncio.TimeoutError:
                 print(f"RSS feed timeout for {source['name']}")
+                continue
             except Exception as e:
                 print(f"Error processing source {source['name']}: {e}")
+                continue
         
         return all_articles
     
