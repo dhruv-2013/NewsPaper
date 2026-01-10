@@ -19,7 +19,6 @@ async def extract_news(
     """Extract news articles from Australian news outlets"""
     try:
         extractor = NewsExtractor()
-        categorizer = NewsCategorizer()
         highlights_processor = HighlightsProcessor()
         
         # Use requested categories, but prioritize sports and music (most reliable)
