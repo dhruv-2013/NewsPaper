@@ -116,20 +116,23 @@ async def extract_news(
         # Single commit for all articles
         db.commit()
         
-        # Refresh to get IDs
+        # Refresh articles to get IDs (refresh immediately after commit)
+        processed_articles = []
         if articles_created > 0:
-            db.query(models.Article).filter(
-                models.Article.extracted_date >= datetime.now().replace(second=0, microsecond=0)
-            ).all()
+            # Get the articles we just created by source_url
+            for article_data in articles_data:
+                art = db.query(models.Article).filter(
+                    models.Article.source_url == article_data.get("source_url", "")
+                ).first()
+                if art:
+                    processed_articles.append(art)
         
         # MINIMAL highlights - only if we have articles and time permits
         highlights_created = 0
-        if articles_created > 0:
+        if processed_articles:
             try:
-                # Get recently created articles
-                recent_articles = db.query(models.Article).filter(
-                    models.Article.extracted_date >= datetime.now().replace(second=0, microsecond=0)
-                ).limit(5).all()
+                # Use the articles we already have (don't query again)
+                for art in processed_articles[:3]:  # Max 3 highlights for speed
                 
                 if recent_articles:
                     # Delete old highlights only if we have new ones

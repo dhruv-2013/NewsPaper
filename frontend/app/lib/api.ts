@@ -30,7 +30,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 90000, // 90 seconds for news extraction
+  timeout: 60000, // 60 seconds for news extraction (reduced for faster feedback)
 })
 
 // Separate instance for chat (shorter timeout)
