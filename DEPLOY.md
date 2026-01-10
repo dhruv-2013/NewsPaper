@@ -17,8 +17,8 @@ Your backend is already deployed on Render. No changes needed.
 
 3. **Add Environment Variable**:
    - Go to Project Settings → Environment Variables
-   - Add: `BACKEND_URL` = `https://your-render-backend-url.onrender.com`
-   - Replace with your actual Render backend URL
+   - Add: `BACKEND_URL` = `https://newspaper-7e3o.onrender.com`
+   - (No trailing slash)
 
 4. **Deploy**:
    - Click "Deploy"
