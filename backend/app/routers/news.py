@@ -22,19 +22,23 @@ async def extract_news(
         categorizer = NewsCategorizer()
         highlights_processor = HighlightsProcessor()
         
-        # Use requested categories or default to all
-        categories_to_extract = request.categories if request.categories else ["sports", "lifestyle", "music", "finance"]
+        # Use requested categories, but prioritize sports and music (most reliable)
+        if request.categories:
+            categories_to_extract = request.categories
+        else:
+            # Default to sports and music for faster, more reliable extraction
+            categories_to_extract = ["sports", "music"]
         
-        # Extract with reasonable timeout (45 seconds)
+        # Extract with shorter timeout (30 seconds) for faster response
         async with extractor:
             try:
                 articles_data = await asyncio.wait_for(
                     extractor.extract_all_articles(categories_to_extract),
-                    timeout=45.0  # 45 second timeout for full extraction
+                    timeout=30.0  # 30 second timeout
                 )
             except asyncio.TimeoutError:
                 return schemas.ExtractionResponse(
-                    message="Extraction timed out - Too many articles or slow network. Try again.",
+                    message="Extraction timed out - Backend may be slow. Try again in 30 seconds.",
                     articles_extracted=0,
                     duplicates_found=0,
                     highlights_created=0
@@ -56,8 +60,8 @@ async def extract_news(
                 highlights_created=0
             )
         
-        # Process up to 30 articles (reasonable limit for performance)
-        articles_data = articles_data[:30]
+        # Limit to reasonable number to avoid timeouts (max 10 articles)
+        articles_data = articles_data[:10]
         
         # Detect duplicates using categorizer
         articles_data = categorizer.detect_duplicates(articles_data)
