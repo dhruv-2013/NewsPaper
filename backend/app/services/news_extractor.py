@@ -95,29 +95,45 @@ class NewsExtractor:
             return datetime.now()
     
     async def fetch_rss_feed(self, rss_url: str) -> List[Dict]:
-        """Fetch and parse RSS feed"""
+        """Fetch and parse RSS feed - MINIMAL: Fastest possible"""
         try:
+            # MINIMAL: Use shortest timeout (5 seconds)
+            timeout = aiohttp.ClientTimeout(total=5)
+            
             if self.session:
-                async with self.session.get(rss_url, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                async with self.session.get(rss_url, timeout=timeout) as response:
+                    if response.status != 200:
+                        print(f"RSS feed returned status {response.status}")
+                        return []
                     content = await response.text()
             else:
-                response = requests.get(rss_url, timeout=10)
+                # Fallback for sync requests
+                response = requests.get(rss_url, timeout=5)
+                if response.status_code != 200:
+                    print(f"RSS feed returned status {response.status_code}")
+                    return []
                 content = response.text
             
+            # Parse feed (this is fast)
             feed = feedparser.parse(content)
-            articles = []
             
-            for entry in feed.entries[:3]:  # Limit to 3 articles per feed for fastest extraction
+            # MINIMAL: Only 1 article from feed
+            articles = []
+            if feed.entries:
+                entry = feed.entries[0]  # Just first entry
                 article = {
                     "title": entry.get("title", ""),
                     "link": entry.get("link", ""),
                     "published": entry.get("published", ""),
-                    "summary": entry.get("summary", ""),
-                    "author": entry.get("author", ""),
+                    "summary": entry.get("summary", "") or entry.get("description", ""),
+                    "author": entry.get("author", "") or entry.get("dc:creator", "") or "Unknown",
                 }
                 articles.append(article)
             
             return articles
+        except asyncio.TimeoutError:
+            print(f"RSS feed timeout: {rss_url}")
+            return []
         except Exception as e:
             print(f"Error fetching RSS feed {rss_url}: {e}")
             return []
