@@ -45,6 +45,20 @@ export async function POST(req: Request) {
       // Handle different error types
       const errorMsg = backendError.message || '';
       
+      // Handle timeout/abort errors
+      if (backendError.name === 'AbortError' || errorMsg.includes('aborted') || errorMsg.includes('timeout')) {
+        return NextResponse.json(
+          {
+            message: "Request timed out after 70 seconds. Render free tier may be slow. Try again in 30-60 seconds.",
+            articles_extracted: 0,
+            duplicates_found: 0,
+            highlights_created: 0,
+            error: "Request timed out. Backend may be cold starting."
+          },
+          { status: 504 } // Gateway Timeout
+        );
+      }
+      
       if (errorMsg.includes('fetch failed') || errorMsg.includes('ECONNREFUSED') || errorMsg.includes('502') || errorMsg.includes('503')) {
         return NextResponse.json(
           {
