@@ -1,16 +1,23 @@
 from typing import List, Dict
-from sentence_transformers import SentenceTransformer
-import numpy as np
-from sklearn.cluster import DBSCAN
-from sklearn.metrics.pairwise import cosine_similarity
 import json
 
+# Lazy import to avoid loading heavy models unless needed
+_sentence_transformer = None
+_numpy = None
+
+def get_sentence_transformer():
+    """Lazy load sentence transformer only when needed (for chat/RAG)"""
+    global _sentence_transformer
+    if _sentence_transformer is None:
+        from sentence_transformers import SentenceTransformer
+        _sentence_transformer = SentenceTransformer('all-MiniLM-L6-v2')
+    return _sentence_transformer
+
 class NewsCategorizer:
-    """Categorize and detect duplicate news articles"""
+    """Categorize and detect duplicate news articles - Memory optimized"""
     
     def __init__(self):
-        # Load pre-trained model for embeddings
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        # Don't load model here - only load when needed (saves memory)
         self.category_keywords = {
             "sports": ["sport", "game", "match", "player", "team", "championship", "league", "football", "cricket", "rugby", "tennis", "olympics"],
             "lifestyle": ["lifestyle", "health", "wellness", "food", "travel", "fashion", "beauty", "home", "garden", "recipe", "diet"],
@@ -32,65 +39,59 @@ class NewsCategorizer:
             return max(scores, key=scores.get)
         return "lifestyle"  # Default category
     
-    def generate_embedding(self, text: str) -> np.ndarray:
-        """Generate embedding for text"""
-        return self.model.encode(text)
+    def generate_embedding(self, text: str):
+        """Generate embedding for text - lazy load model only when needed"""
+        global _numpy
+        if _numpy is None:
+            import numpy as np
+            _numpy = np
+        
+        model = get_sentence_transformer()
+        return model.encode(text)
     
     def detect_duplicates(self, articles: List[Dict]) -> List[Dict]:
-        """Detect duplicate or similar articles using clustering"""
+        """Detect duplicate articles using simple URL-based matching (memory-efficient)"""
         if len(articles) < 2:
+            for article in articles:
+                article.setdefault('cluster_id', hash(article.get('title', '')) % 1000)
+                article.setdefault('is_duplicate', False)
             return articles
         
-        # Generate embeddings for all articles
-        texts = [f"{art['title']} {art['summary']}" for art in articles]
-        embeddings = self.model.encode(texts)
-        
-        # Use DBSCAN clustering to find similar articles
-        # eps controls the distance threshold for clustering
-        clustering = DBSCAN(eps=0.3, min_samples=1, metric='cosine')
-        cluster_labels = clustering.fit_predict(embeddings)
-        
-        # Group articles by cluster
-        clusters = {}
-        for idx, label in enumerate(cluster_labels):
-            if label not in clusters:
-                clusters[label] = []
-            clusters[label].append(idx)
-        
-        # Mark duplicates and assign cluster IDs
+        # Simple duplicate detection: group by similar titles (first 50 chars)
+        seen_titles = {}
         processed_articles = []
         cluster_id_counter = 0
         
-        for cluster_id, article_indices in clusters.items():
-            if len(article_indices) > 1:
-                # Multiple articles in cluster - mark as potential duplicates
-                # Keep the first one as primary, mark others as duplicates
-                primary_idx = article_indices[0]
-                articles[primary_idx]['cluster_id'] = cluster_id_counter
-                articles[primary_idx]['is_duplicate'] = False
-                processed_articles.append(articles[primary_idx])
-                
-                for idx in article_indices[1:]:
-                    articles[idx]['cluster_id'] = cluster_id_counter
-                    articles[idx]['is_duplicate'] = True
-                    processed_articles.append(articles[idx])
-                
-                cluster_id_counter += 1
+        for article in articles:
+            title_key = article.get('title', '')[:50].lower().strip()
+            
+            if title_key in seen_titles:
+                # Potential duplicate - same title start
+                existing_cluster_id = seen_titles[title_key]
+                article['cluster_id'] = existing_cluster_id
+                article['is_duplicate'] = True
             else:
-                # Single article in cluster
-                idx = article_indices[0]
-                articles[idx]['cluster_id'] = cluster_id_counter
-                articles[idx]['is_duplicate'] = False
-                processed_articles.append(articles[idx])
+                # New article
+                seen_titles[title_key] = cluster_id_counter
+                article['cluster_id'] = cluster_id_counter
+                article['is_duplicate'] = False
                 cluster_id_counter += 1
+            
+            processed_articles.append(article)
         
         return processed_articles
     
-    def embedding_to_json(self, embedding: np.ndarray) -> str:
+    def embedding_to_json(self, embedding) -> str:
         """Convert numpy array to JSON string"""
-        return json.dumps(embedding.tolist())
+        if hasattr(embedding, 'tolist'):
+            return json.dumps(embedding.tolist())
+        return json.dumps(list(embedding))
     
-    def json_to_embedding(self, json_str: str) -> np.ndarray:
+    def json_to_embedding(self, json_str: str):
         """Convert JSON string to numpy array"""
-        return np.array(json.loads(json_str))
+        global _numpy
+        if _numpy is None:
+            import numpy as np
+            _numpy = np
+        return _numpy.array(json.loads(json_str))
 

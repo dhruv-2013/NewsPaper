@@ -63,10 +63,21 @@ async def extract_news(
         # Limit to reasonable number to avoid timeouts (max 10 articles)
         articles_data = articles_data[:10]
         
-        # Detect duplicates using categorizer
-        articles_data = categorizer.detect_duplicates(articles_data)
+        # Simple duplicate detection using URL only (avoid memory-intensive embeddings)
+        seen_urls = set()
+        unique_articles = []
+        for article in articles_data:
+            url = article.get("source_url", "")
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                # Add simple hash-based cluster_id
+                article["cluster_id"] = hash(article.get("title", "")) % 1000
+                article["is_duplicate"] = False
+                unique_articles.append(article)
         
-        # Process articles - use RSS summaries, skip AI for speed
+        articles_data = unique_articles
+        
+        # Process articles - use RSS summaries, skip embeddings to save memory
         articles_created = 0
         duplicates_count = 0
         processed_articles = []
@@ -86,10 +97,8 @@ async def extract_news(
             if not summary or len(summary) < 30:
                 summary = article_data.get("title", "") + " - " + article_data.get("source", "Unknown")
             
-            # Generate simple embedding for categorization
-            text_for_embedding = f"{article_data.get('title', '')} {summary}"
-            embedding = categorizer.generate_embedding(text_for_embedding)
-            embedding_json = categorizer.embedding_to_json(embedding)
+            # Skip embedding generation to save memory - use empty array
+            embedding_json = "[]"
             
             # Create or update article
             if existing:

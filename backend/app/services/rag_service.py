@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class RAGService:
-    """Retrieval-Augmented Generation service for chatbot"""
+    """Retrieval-Augmented Generation service for chatbot - Memory optimized"""
     
     def __init__(self):
         api_key = os.getenv("OPENAI_API_KEY")
@@ -20,7 +20,15 @@ class RAGService:
             self.client = None
             print("Warning: OPENAI_API_KEY not set. RAG will use simple responses.")
         
-        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        # Lazy load embedding model - don't load until actually needed
+        self._embedding_model = None
+    
+    @property
+    def embedding_model(self):
+        """Lazy load embedding model only when accessed"""
+        if self._embedding_model is None:
+            self._embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        return self._embedding_model
     
     def generate_embedding(self, text: str) -> np.ndarray:
         """Generate embedding for text"""
