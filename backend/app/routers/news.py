@@ -131,29 +131,26 @@ async def extract_news(
         highlights_created = 0
         if processed_articles:
             try:
+                # Delete old highlights only if we have new ones
+                db.query(models.Highlight).delete()
+                
                 # Use the articles we already have (don't query again)
                 for art in processed_articles[:3]:  # Max 3 highlights for speed
+                    highlight = models.Highlight(
+                        article_id=art.id,
+                        title=art.title,
+                        summary=art.summary or art.title,
+                        category=art.category or "sports",
+                        frequency=1,
+                        priority_score=10.0,
+                        sources=art.source or "Unknown",
+                        authors=art.author or "Unknown",
+                        is_breaking=False
+                    )
+                    db.add(highlight)
+                    highlights_created += 1
                 
-                if recent_articles:
-                    # Delete old highlights only if we have new ones
-                    db.query(models.Highlight).delete()
-                    
-                    for art in recent_articles[:3]:  # Max 3 highlights for speed
-                        highlight = models.Highlight(
-                            article_id=art.id,
-                            title=art.title,
-                            summary=art.summary or art.title,
-                            category=art.category or "sports",
-                            frequency=1,
-                            priority_score=10.0,
-                            sources=art.source or "Unknown",
-                            authors=art.author or "Unknown",
-                            is_breaking=False
-                        )
-                        db.add(highlight)
-                        highlights_created += 1
-                    
-                    db.commit()
+                db.commit()
             except Exception as e:
                 print(f"Error creating highlights: {e}")
                 db.rollback()

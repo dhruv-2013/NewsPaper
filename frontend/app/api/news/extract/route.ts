@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     // Proxy request to Python backend
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minutes timeout
+      const timeoutId = setTimeout(() => controller.abort(), 70000); // 70 second timeout (slightly longer than frontend)
       
       const response = await fetch(`${backendUrl}/api/news/extract`, {
         method: 'POST',
